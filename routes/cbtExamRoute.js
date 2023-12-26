@@ -4,8 +4,14 @@ const router = express.Router()
 //Models
 const QuestionModel = require('../models/QuestionsModel')
 
-router.get('/', (req, res)=>{
-    res.send('cbt exam route')
+router.get('/', async(req, res)=>{
+    try{
+        const questions = await QuestionModel.find({course: "Bio"})
+        res.send(questions)
+    }catch(err){
+        console.log(err)
+        res.status(500).json({"status":500, "message": "error while trying to fetch questions"})
+    }
 })
 
 router.post('/create', async(req, res)=>{
