@@ -14,12 +14,13 @@ const QuestionModel = require('./models/QuestionsModel')
 
 //routes handling
 const cbtRoute = require('./routes/cbtExamRoute')
+const adminRoute = require('./routes/adminRoute')
 
 
 
 //middleware for routing
 app.use('/cbt-exam', cbtRoute)
-
+app.use('/official', adminRoute)
 
 
 //handles 404's

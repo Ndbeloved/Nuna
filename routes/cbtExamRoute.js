@@ -21,41 +21,33 @@ router.get('/', async(req, res)=>{
 
     try{
         const course = "CSC201"
-        const questions = await QuestionModel.find({course: course})
-        
-        res.send(shuffleQuestions(questions))
+        const inProgress = await RegisteredCoursesModel.find({name: course});
+        if(inProgress.length <= 0){
+            res.status(404).json({"status":404, "message": "Course isn't registered"})
+            return
+        }
+        if(inProgress[0].inProgress){
+            const questions = await QuestionModel.find({course: course})
+            res.send(shuffleQuestions(questions))
+            return
+        }
+        res.status(200).json({"status":200, "message": "Course isn't available at the moment"})
     }catch(err){
         console.log(err)
         res.status(500).json({"status":500, "message": "error while trying to fetch questions"})
     }
 })
 
-//Create new questions
-router.post('/create', async(req, res)=>{
+
+
+//handles sumbmission
+router.post('/submit', async (req, res)=>{
     try{
-        const {course, que, optA, optB, optC, optD} = req.body
-        const isCourseRegistered = await RegisteredCoursesModel.find({name: course})
-        console.log(isCourseRegistered ,course);
-        if(isCourseRegistered.length <= 0){
-            const RegisterCourse = new RegisteredCoursesModel({
-                name: course,
-            })
-            await RegisterCourse.save();
-            //res.status(200).json({"status": 200, "message": "registered course"})
-        }
-        const newQuestion = new QuestionModel({
-            course: course,
-            que: que,
-            optA: optA,
-            optB: optB,
-            optC: optC,
-            optD: optD
-        })
-        await newQuestion.save()
-        res.status(200).json({"status": 200, "message": "saved question successfully"})
+        const {score} = req.body;
+        //save score to db
     }catch(err){
         console.log(err)
-        res.status(500).json({"status": 500, "message": "error saving course"})
+        res.status(500).json({"status": 500, "message": "error while trying to submit"})
     }
 })
 
