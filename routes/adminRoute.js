@@ -7,6 +7,7 @@ const router = express.Router()
 const QuestionModel = require('../models/QuestionsModel')
 const RegisteredCoursesModel = require('../models/RegisteredModels')
 const StudentModel = require('../models/StudentModel')
+const CurrentCourseModel = require('../models/currentCourseModel')
 
 
 //Admin dashboard
@@ -117,6 +118,44 @@ router.post('/violation/expel/:reg', async(req, res)=>{
     }catch(err){
         console.log(err)
         res.status(500).json({"status": 500, "message": "Internal server error while trying to delete student"})
+    }
+})
+
+router.post('/open-course', async(req, res)=>{
+    try{
+        const {course} = req.body
+        const openPortalCourse = await RegisteredCoursesModel.findOne({name: course})
+        if(!openPortalCourse){
+            return res.status(404).json({"status":404, "message": "course wasn't registered"})
+        }
+        const newOpenCourse = new CurrentCourseModel({
+            name: course
+        });
+        openPortalCourse.inProgress = true
+        await newOpenCourse.save()
+        await openPortalCourse.save()
+        res.status(200).json({"status":200, "message":"course has successfully been opened"})
+    }catch(err){
+        console.log(err);
+        res.status(500).json({"status":500, "message": "Internal server error trying to open course"})
+    }
+})
+
+router.post('/close-course', async(req, res)=>{
+    try{
+        const {course} = req.body
+        const openPortalCourse = await RegisteredCoursesModel.findOne({name: course})
+        const currentCourse = await CurrentCourseModel.findOne({name: course})
+        if(openPortalCourse.length < 1 || !openPortalCourse.inProgress || currentCourse.length < 1){
+            return res.status(404).json({"status":404, "message": "course isn't open"})
+        }
+        openPortalCourse.inProgress = false
+        await openPortalCourse.save()
+        await CurrentCourseModel.deleteOne({name: course})
+        res.status(200).json({"status":200, "message": "closed course successfully"})
+    }catch(err){
+        console.log(err);
+        res.status(500).json({"status":500, "message": "Internal server error trying to close course"})
     }
 })
 

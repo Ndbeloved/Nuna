@@ -22,6 +22,10 @@ const StudentSchema = new mongoose.Schema({
         type: "Boolean",
         default: false
     },
+    writtenCourse:{
+        type: "String",
+        default: "none"
+    },
     courses: [Array],
 })
 
