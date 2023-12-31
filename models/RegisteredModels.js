@@ -16,7 +16,7 @@ const RegisteredCoursesSchema = new mongoose.Schema({
     questionLimit:{
         type: "String",
         default: "20",
-    }
+    },
 });
 
 module.exports = mongoose.model("RegisteredCourses", RegisteredCoursesSchema)

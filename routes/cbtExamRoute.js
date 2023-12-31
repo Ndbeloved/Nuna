@@ -43,16 +43,25 @@ router.get('/', authenticateToken, async(req, res)=>{
     try{
         const courseObj = await currentCourseModel.find();
         let course = false;
+
+        //confirms there's a course to write, gets course name
         if(courseObj.length > 0){
             course = courseObj[0].name
+            if(!courseObj[0].studentsWritten.includes(req.user.reg)){
+                courseObj[0].studentsWritten.push(req.user.reg)
+                await courseObj[0].save()
+            }
         }
+        //if no course, return 404
         if(!course){
             return res.status(404).json({"status":404, "message": "Course isn't registered"})
         }
+        //checks if course in progress is registered
         const inProgress = await RegisteredCoursesModel.find({name: course});
         if(inProgress.length <= 0){
             return res.status(404).json({"status":404, "message": "Course isn't registered"})
         }
+        //if course is registered, check inProgress status, if true fetch questions
         if(inProgress[0].inProgress){
             const questions = await QuestionModel.find({course: course})
             const user = {
@@ -61,7 +70,7 @@ router.get('/', authenticateToken, async(req, res)=>{
             }
             return res.status(200).json({"status":200,"questions": shuffleQuestions(questions), "student": user})
         }
-        res.status(200).json({"status":200, "message": "Course isn't available at the moment"})
+        res.status(404).json({"status":404, "message": "Course isn't available at the moment"})
     }catch(err){
         console.log(err)
         res.status(500).json({"status":500, "message": "error while trying to fetch questions"})
@@ -75,10 +84,22 @@ router.post('/login', async(req, res)=>{
         const {reg} = req.body
         const student = await StudentModel.findOne({reg})
         const currentCourse = await currentCourseModel.find();
-        const currentCourseName =  currentCourse[0].name;
+        let currentCourseName;
+        if(currentCourse.length <= 0){
+            return res.status(404).json({"status":404, "message": "No exams found"})
+        }
+        if(currentCourse.length > 0){
+            currentCourseName =  currentCourse[0].name;
+        }
         if(!student || !student.isPortal || student.writtenCourse == currentCourse[0].name){
             return res.status(404).json({"status":404, "message":"No exams found for student"})
         }
+
+        //checks if a student has sat for the exam
+        if(currentCourse[0].studentsWritten.includes(reg)){
+            return res.status(404).json({"status":404, "message": "Student has already written this course"})
+        }
+
         const token = jwt.sign({name: student.name, reg: reg, course: currentCourse[0].name || 'TEST'}, secretKey, {expiresIn: '2h'})
         return res.status(200).json({"status":200, "message": "logged in successfully", token, student, currentCourseName})
     }catch(err){
@@ -92,8 +113,23 @@ router.post('/login', async(req, res)=>{
 //handles sumbmission
 router.post('/submit', async (req, res)=>{
     try{
-        const {score} = req.body;
-        //save score to db
+        const {answers, reg, course} = req.body;
+        const student = await StudentModel.findOne({reg: reg})
+        let score = 0;
+        const scorePerAnswer = 3.5 //calculate from 70marks divided by total number of questions
+        if(answers == null || answers == undefined){
+            score = 0
+        }
+        else{
+            Object.entries(answers).forEach(([key, value])=>{
+                if(value.gotIt == true || value.gotIt == 'true'){
+                    score += scorePerAnswer
+                }
+            })
+        }
+        student.grades.push({course, score})
+        await student.save();
+        res.status(200).json({"status":200, "message": "saved answers successfully"})
     }catch(err){
         console.log(err)
         res.status(500).json({"status": 500, "message": "error while trying to submit"})

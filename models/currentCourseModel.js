@@ -5,6 +5,9 @@ const currentCourseSchema = new mongoose.Schema({
         type: "String",
         required: true,
         unique: true,
+    },
+    studentsWritten:{
+        type: [String],
     }
 })
 

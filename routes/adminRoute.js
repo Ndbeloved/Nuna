@@ -85,6 +85,17 @@ router.post('/register/student/:name/:academicSection', async(req, res)=>{
     }
 })
 
+//gets all registered courses
+router.get('/registered-courses', async(req, res)=>{
+    try{
+        const courses = await RegisteredCoursesModel.find()
+        res.status(200).json({"status": 200, "message": "retrived courses successfully", courses: courses})
+    }
+    catch(err){
+        console.log(err);
+        res.status(500)
+    }
+})
 
 //opens a students portal
 router.post('/scan/student/:reg/:course', async(req, res)=>{
@@ -121,11 +132,13 @@ router.post('/violation/expel/:reg', async(req, res)=>{
     }
 })
 
+//pushes courses to currentCourse
 router.post('/open-course', async(req, res)=>{
     try{
         const {course} = req.body
         const openPortalCourse = await RegisteredCoursesModel.findOne({name: course})
         if(!openPortalCourse){
+            console.log(openPortalCourse)
             return res.status(404).json({"status":404, "message": "course wasn't registered"})
         }
         const newOpenCourse = new CurrentCourseModel({
