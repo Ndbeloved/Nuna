@@ -58,6 +58,7 @@ router.get('/', authenticateToken, async(req, res)=>{
         }
         //checks if course in progress is registered
         const inProgress = await RegisteredCoursesModel.find({name: course});
+        const examTime = inProgress[0].time;
         if(inProgress.length <= 0){
             return res.status(404).json({"status":404, "message": "Course isn't registered"})
         }
@@ -68,7 +69,8 @@ router.get('/', authenticateToken, async(req, res)=>{
                 name: req.user.name,
                 reg: req.user.reg
             }
-            return res.status(200).json({"status":200,"questions": shuffleQuestions(questions), "student": user})
+            console.log(examTime)
+            return res.status(200).json({"status":200,"questions": shuffleQuestions(questions), "student": user,"time":examTime})
         }
         res.status(404).json({"status":404, "message": "Course isn't available at the moment"})
     }catch(err){
@@ -115,8 +117,9 @@ router.post('/submit', async (req, res)=>{
     try{
         const {answers, reg, course} = req.body;
         const student = await StudentModel.findOne({reg: reg})
+        const courseModel = await QuestionModel.find({course: course});
         let score = 0;
-        const scorePerAnswer = 3.5 //calculate from 70marks divided by total number of questions
+        const scorePerAnswer = (70/ courseModel.length)
         if(answers == null || answers == undefined){
             score = 0
         }
@@ -127,6 +130,11 @@ router.post('/submit', async (req, res)=>{
                 }
             })
         }
+        student.grades.forEach((grade,index)=>{
+            if(grade.course == course){
+                student.grades.pop(index)
+            }
+        })
         student.grades.push({course, score})
         await student.save();
         res.status(200).json({"status":200, "message": "saved answers successfully"})

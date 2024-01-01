@@ -9,7 +9,7 @@ let app = express()
 app.use(express.json())
 app.use(express.urlencoded({extended:true}));//needed for the passing of request body
 app.use(cors({
-    origin: '*',
+    origin: process.env.ALLOWED_HOST,
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }))

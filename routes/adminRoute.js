@@ -1,7 +1,8 @@
 const express = require('express')
 const router = express.Router()
+const jwt = require('jsonwebtoken')
 
-
+const secretKey = process.env.SECRET_KEY
 
 //Models
 const QuestionModel = require('../models/QuestionsModel')
@@ -9,26 +10,60 @@ const RegisteredCoursesModel = require('../models/RegisteredModels')
 const StudentModel = require('../models/StudentModel')
 const CurrentCourseModel = require('../models/currentCourseModel')
 
+//authenticate token
+function authenticateToken(req, res, next){
+    const token = req.headers['authorization'];
+    if(!token){
+        return res.status(401).json({"status":401, "message": "Token is required"})
+    }
+    jwt.verify(token, secretKey, (err, decoded)=>{
+        if(err){
+            return res.status(403).json({"status":403, "message":"invalid token"})
+        }
+        req.user = decoded
+        next();
+    })
+}
+
 
 //Admin dashboard
-router.get('/', async(req, res)=>{
-    res.send("Only authorized users only")
+router.get('/', authenticateToken, async(req, res)=>{
+    res.status(200).json({"status":200, "message":"Verified"})
+})
+
+router.post('/login', async(req,res)=>{
+    try{
+        const {name, password} = req.body
+        const isAdmin = await StudentModel.findOne({name:'Admin'});
+        if(!isAdmin){
+            return res.status(404).json({"status":404, "message":"wrong password or name"})
+        }
+        if(isAdmin.reg !== password){
+            return res.status(404).json({"status":404, "message":"wrong password or name"})
+        }
+        const token = jwt.sign({name: 'name', role: 'admin'}, secretKey, {expiresIn: '2h'})
+        res.status(200).json({"status":200, "message": "logged in successfully", token})
+    }
+    catch(err){
+        console.log(err);
+        res.status(500).json({"status":500, "message":"Server is down"})
+    }
 })
 
 //Create new questions
 router.post('/create', async(req, res)=>{
     try{
         const {course, que, optA, optB, optC, optD, answer} = req.body
-        const isCourseRegistered = await RegisteredCoursesModel.find({name: course})
+        const isCourseRegistered = await RegisteredCoursesModel.find({name: course.toUpperCase()})
         if(isCourseRegistered.length <= 0){
             const RegisterCourse = new RegisteredCoursesModel({
-                name: course,
+                name: course.toUpperCase(),
             })
             await RegisterCourse.save();
             //res.status(200).json({"status": 200, "message": "registered course"})
         }
         const newQuestion = new QuestionModel({
-            course: course,
+            course: course.toUpperCase(),
             que: que,
             optA: optA,
             optB: optB,
@@ -46,11 +81,11 @@ router.post('/create', async(req, res)=>{
 
 
 //register students
-router.post('/register/student/:name/:academicSection', async(req, res)=>{
+router.post('/register/student', async(req, res)=>{
 
     try{
-        const name = req.params.name;
-        const yearOfEntry =req.params.academicSection;
+        const {name, academicSection} = req.body;
+        const yearOfEntry = academicSection;
         let count = 0;
         let month = 12
 
@@ -78,7 +113,7 @@ router.post('/register/student/:name/:academicSection', async(req, res)=>{
             yearOfEntry: yearOfEntry,
         })
         await newStudent.save()
-        res.status(200).json({"status": 200, "message":"student registered"})
+        res.status(200).json({"status": 200, "message":"Student registered successfully"})
     }catch(err){
         console.log(err);
         res.status(500).json({"status": 500, "message":"error in registering student"})
@@ -98,17 +133,16 @@ router.get('/registered-courses', async(req, res)=>{
 })
 
 //opens a students portal
-router.post('/scan/student/:reg/:course', async(req, res)=>{
+router.post('/scan/student', async(req, res)=>{
     try{
-        const reg = req.params.reg;
-        const course = req.params.course;
+        const {reg, course} = req.body
         const student = await StudentModel.findOne({reg: reg})
         if(!student){
-            res.status(200).json({"status": 200, "message":"Registration number not found"})
+            res.status(404).json({"status": 404, "message":"Registration number not found"})
             return
         }
         if(!student.courses.includes(course)){
-            res.status(200).json({"status":200, "message": "student didn't register this course"});
+            res.status(404).json({"status":404,  "message": "Student didn't register this course"});
             return
         }
         student.isPortal = true;
